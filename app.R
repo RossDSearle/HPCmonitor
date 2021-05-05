@@ -87,13 +87,21 @@ server <- function(input, output) {
       RV$currentResponse <- odf2
     }else if(t=='Show_Jobs_Info'){
       RV$currentResponse <- read.table(text=rb, header=T, skip=0)
-    }else if(t=='Show_Queue'){
+    }else if( t== 'Show_Jobs_Info_-_Verbose'){
+      odf <-  read.table(text=rb, header=F, skip=1)
+      odf2 <- data.frame(JobID= odf$V1, jobName=odf$V2, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
+      RV$currentResponse <- odf2
+    } else if(t=='Show_Queue'){
       odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
       odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
       RV$currentResponse <- odf2
-      
+    }else if(t=='Show_Number_CPUs_In_Use'){
+      odf<- read.table(text=rb, header=F, skip=0)
+      odf2 <- data.frame(Result=odf$V2)
+      RV$currentResponse <- odf2
     }
 
+    
   })
 }
 
