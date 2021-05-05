@@ -7,7 +7,7 @@ source(paste0(getwd(), '/appConfig.R'))
 
 
 session <- ssh_connect(host, passwd='Gobs4066')
-cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Get_Job_Log')
+cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Show_Job_Log')
 print(cmd)
 resp <- ssh_exec_internal(session, command=cmd)
 ssh_disconnect(session)
@@ -79,14 +79,21 @@ server <- function(input, output) {
     ssh_disconnect(session)
     
     rb <- readBin(resp$stdout, what='character')
-    odf <- read.table(text=rb, header=T, skip=0)
     
-    
-   # ot <- str_replace_all(rb, pattern = '\n', '<br>')
-    #print(head(odf))
-    RV$currentResponse <- odf
-    
-    
+    if(t=='Show_Job_Log'){
+      
+      odfx <- read.table(text=rb, header=F, skip=1)
+      odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
+      RV$currentResponse <- odf2
+    }else if(t=='Show_Jobs_Info'){
+      RV$currentResponse <- read.table(text=rb, header=T, skip=0)
+    }else if(t=='Show_Queue'){
+      odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
+      odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
+      RV$currentResponse <- odf2
+      
+    }
+
   })
 }
 
