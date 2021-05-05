@@ -27,7 +27,7 @@ ui <- fluidPage(
      textInput('pwd', label = 'pwd'),
      actionButton('ServerLogin',  label = 'Login'),
      selectInput('jobList', label = 'Jobs', choices = paste0(rev(jobsdf$V2), '_', rev(jobsdf$V3))),
-     selectInput('task', label = 'Task', choices = tasks),
+     selectInput('task', label = 'Task', choices = tasks, selected='Show Jobs Info'),
      actionButton('doQuery',  label = 'Query'),
      
     ),
