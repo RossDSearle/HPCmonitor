@@ -8,67 +8,95 @@
 #
 
 library(shiny)
-
 library(ssh)
 library(stringr)
+library(rhandsontable)
+
+source(paste0(getwd(), '/appConfig.R'))
 
 
-
-server <- 'sea084@pearcey-i1.hpc.csiro.au'
-
-# session <- ssh_connect(server, passwd='Gobs4066')
-# resp <- ssh_exec_wait(session, command = "squeue -u sea084")
-# ssh_disconnect(session)
-
-session <- ssh_connect(server, passwd='Gobs4066')
-#resp <- ssh_exec_internal(session, command = "squeue -u sea084")
-
-cmd <- '/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/test1.R'
-resp <- ssh_exec_internal(session, command =cmd)
+session <- ssh_connect(host, passwd='Gobs4066')
+cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Get_Job_Log')
+print(cmd)
+resp <- ssh_exec_internal(session, command=cmd)
 ssh_disconnect(session)
-
-
 rb <- readBin(resp$stdout, what='character')
-
-#ot <- str_split(rb, pattern = '\n')
-
-ot <- str_replace_all(rb, pattern = '\n', '<br>')
+jobsdf <- read.table(text=rb, header=F, skip=1)
 
 
 
-# Define UI for application that draws a histogram
 ui <- fluidPage(
   
-  # Application title
-  titlePanel("Old Faithful Geyser Data"),
+
+  titlePanel("Pearcey Remote Monitoring"),
   
-  # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
      selectInput('usr', label = 'user', choices = c('sea084', 'mal000')),
      textInput('pwd', label = 'pwd'),
-     actionButton('ServerLogin',  label = 'Login')
+     actionButton('ServerLogin',  label = 'Login'),
+     selectInput('jobList', label = 'Jobs', choices = paste0(rev(jobsdf$V2), '_', rev(jobsdf$V3))),
+     selectInput('task', label = 'Task', choices = tasks),
+     actionButton('doQuery',  label = 'Query'),
+     
     ),
     
-    # Show a plot of the generated distribution
     mainPanel(
       # textOutput("foo"),
       # tags$style(type="text/css", "#foo {white-space: pre-wrap;}"),
-      htmlOutput('bob')
+      #htmlOutput('MainResponse')
+      rHandsontableOutput('mainDT')
     )
   )
 )
 
-# Define server logic required to draw a histogram
+
 server <- function(input, output) {
   
-  output$bob <- renderUI({
-   HTML(ot)
+  RV <- reactiveValues()
+  RV$currentResponse = NULL
+  
+  output$mainDT <- DT::renderDataTable({
+    
+    req(RV$currentResponse)
+    print(head(RV$currentResponse))
+    DT::datatable(RV$currentResponse)
   })
   
-  # output$foo <- renderText({
-  #   rb
-  # })
+  output$mainDT <- renderRHandsontable({
+    req(RV$currentResponse)
+      rhandsontable(RV$currentResponse)
+  })
+  
+  output$MainResponse <- renderUI({
+    req(RV$currentResponse)
+   HTML(RV$currentResponse)
+  })
+  
+  observeEvent(input$ServerLogin, {
+    print('Login click')
+  })
+  
+  observeEvent(input$doQuery, {
+    session <- ssh_connect(host, passwd='Gobs4066')
+    #resp <- ssh_exec_internal(session, command = "squeue -u sea084")
+    
+    t <- str_replace_all(input$task, " ", "_")
+    cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
+    print(cmd)
+    resp <- ssh_exec_internal(session, command=cmd)
+    ssh_disconnect(session)
+    
+    rb <- readBin(resp$stdout, what='character')
+    odf <- read.table(text=rb, header=T, skip=0)
+    
+    
+   # ot <- str_replace_all(rb, pattern = '\n', '<br>')
+    #print(head(odf))
+    RV$currentResponse <- odf
+    
+    
+  })
 }
 
 # Run the application
