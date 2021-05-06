@@ -52,27 +52,16 @@ server <- function(input, output, session) {
   
   RV <- reactiveValues()
   RV$currentResponse = NULL
-  
-  output$mainDT <- DT::renderDataTable({
-    
-    req(RV$currentResponse)
-    print(head(RV$currentResponse))
-    DT::datatable(RV$currentResponse)
-  })
+  RV$isStarting = NULL
   
   output$mainDT <- renderRHandsontable({
     req(RV$currentResponse)
       rhandsontable(RV$currentResponse)
   })
   
-  output$MainResponse <- renderUI({
-    req(RV$currentResponse)
-   HTML(RV$currentResponse)
-  })
   
   observeEvent(input$SaveLogin, {
     glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(input$usr, 'XXXX',input$pwd))
-    
   })
   
   
@@ -81,29 +70,48 @@ server <- function(input, output, session) {
 
    ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
    cks <- paste(ck, collapse="")
-   print(str(cks))
+
    if(!is.null(cks) & length(cks)>0){
      pwd <-str_split(cks, 'XXXX')
      updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
+     RV$isStarting="a"
    }
   })
-  
+ 
   
   
   observe({
-    req(input$usr, input$pwd)
-    session <- ssh_connect(paste0(input$usr,'@', host), passwd=input$pwd)
     
-    t <- str_replace_all(input$task, " ", "_")
+    print(RV$isStarting)
+    print(input$usr)
+    print(input$pwd)
+    
+    theTask <- input$task
+    
+    isolate({ 
+      
+      if(is.null(input$usr) | is.null(input$pwd)){
+        return()
+      }
+      if(input$usr=='' | input$pwd==''){
+        return()
+      }
+      
+      u <- input$usr
+      p <- input$pwd
+      h <- paste0(u,'@', host)
+      
+    session <- ssh_connect(host=h, passwd=p)
+
+    t <- str_replace_all(theTask, " ", "_")
     cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-    print(cmd)
     resp <- ssh_exec_internal(session, command=cmd)
     ssh_disconnect(session)
-    
+
     rb <- readBin(resp$stdout, what='character')
-    
+
     if(t=='Show_Job_Log'){
-      
+
       odfx <- read.table(text=rb, header=F, skip=1)
       odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
       RV$currentResponse <- odf2
@@ -131,7 +139,7 @@ server <- function(input, output, session) {
       RV$currentResponse <- odf2
     }
 
-    
+    })
     
   })
 }
@@ -144,8 +152,6 @@ shinyApp(ui = ui, server = server,
            
            onStop(function() {
              cat("Doing application cleanup\n")
-             # print('he')
-             # glouton::add_cookie(name="ShinyHPCMonitor", value='Bob')
+
            })
          })
-#value=paste0(input$usr, '|',input$pwd)
