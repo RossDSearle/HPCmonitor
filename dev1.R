@@ -1,3 +1,7 @@
+library(ssh)
+
+host <-  'sea084@pearcey-i1.hpc.csiro.au'
+
 session <- ssh_connect(host, passwd='Gobs4066')
 cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Show_Number_CPUs_In_Use')
 print(cmd)
