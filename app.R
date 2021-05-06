@@ -92,6 +92,8 @@ server <- function(input, output, session) {
   
   observe({
     req(input$usr, input$pwd)
+    
+    isolate(input$usr, input$pwd)
     session <- ssh_connect(paste0(input$usr,'@', host), passwd=input$pwd)
     
     t <- str_replace_all(input$task, " ", "_")
