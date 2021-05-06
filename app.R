@@ -84,17 +84,20 @@ server <- function(input, output, session) {
 
     
     print(RV$isStarting)
-    print(input$usr)
-    print(input$pwd)
+   
     
     theTask <- input$task
     
     isolate({ 
       
-      if(is.null(input$usr) | is.null(input$pwd)){
+
+       print(input$usr)
+       print(input$pwd)
+      
+      if(is.null(input$usr) | is.null(p)){
         return()
       }
-      if(input$usr=='' | input$pwd==''){
+      if(input$usr=='' | input$pwd ==''){
         return()
       }
       
