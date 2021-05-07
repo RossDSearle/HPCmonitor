@@ -26,7 +26,7 @@ ui <- fluidPage(
   titlePanel("Pearcey Remote Monitoring"),
   
   sidebarLayout(
-    sidebarPanel(
+    sidebarPanel( width=1,
      selectInput('usr', label = 'user', choices = appUsers),
      #passwordInput('pwd', label = 'pwd'),
      textInput('pwd', label = 'pwd'),
@@ -34,7 +34,7 @@ ui <- fluidPage(
      #selectInput('jobList', label = 'Jobs', choices = paste0(rev(jobsdf$V2), '_', rev(jobsdf$V3))),
      HTML('<br><br><br>'),
      selectInput('task', label = 'Task', choices = tasks, selected='Show Jobs Info'),
-
+     actionButton('Update',  label = 'Update'),
      
     ),
     
@@ -85,7 +85,7 @@ server <- function(input, output, session) {
     
     print(RV$isStarting)
    
-    
+   input$Update 
     theTask <- input$task
     
     isolate({ 
