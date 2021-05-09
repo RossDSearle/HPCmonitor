@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyMobile)
+library(shinyjs)
 library(ssh)
 library(stringr)
 library(rhandsontable)
@@ -29,13 +30,10 @@ shiny::shinyApp(
       panels = tagList(
         f7Panel(title = "Login", side = "left", theme = "dark", effect = "cover",
                 
-                
-                pickerInput(
+                f7Picker(
                   inputId = 'usr',
                   label = "user", 
-                  choices = appUsers,
-                  inline = F,
-                  options = list(mobile = T)
+                  choices = tasks,
                 ),
                 f7Password(inputId = 'pwd', label = "pwd", value = 'Gobs4066' ),
                 
