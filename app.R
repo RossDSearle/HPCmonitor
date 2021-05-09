@@ -6,156 +6,234 @@ library(shinybusy)
 library(glouton)  ## cookie handling
 source(paste0(getwd(), '/appConfig.R'))
 
+defWidth = '380px'
 
-# session <- ssh_connect(host, passwd='Gobs4066')
-# cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Show_Job_Log')
-# print(cmd)
-# resp <- ssh_exec_internal(session, command=cmd)
-# ssh_disconnect(session)
-# rb <- readBin(resp$stdout, what='character')
-# jobsdf <- read.table(text=rb, header=F, skip=1)
-
-
-
-ui <- fluidPage(
-  
-
-  add_busy_spinner(spin = "flower", margins = c(0, 0), position='full-page', color = 'red',height = "80px", width = "80px"),
-  use_glouton(),
-  
-  titlePanel("Pearcey Remote Monitoring"),
-  
-  sidebarLayout(
-    sidebarPanel( width=1,
-     selectInput('usr', label = 'user', choices = appUsers),
-     #passwordInput('pwd', label = 'pwd'),
-     textInput('pwd', label = 'pwd'),
-     actionButton('SaveLogin',  label = 'Save login Info'),
-     #selectInput('jobList', label = 'Jobs', choices = paste0(rev(jobsdf$V2), '_', rev(jobsdf$V3))),
-     HTML('<br><br><br>'),
-     selectInput('task', label = 'Task', choices = tasks, selected='Show Jobs Info'),
-     actionButton('Update',  label = 'Update'),
-     
+shiny::shinyApp(
+  ui = f7Page(
+    title = "Pearcey Remote Monitoring",
+    init = f7Init(skin = "auto", theme = "light", filled = T, color = 'lightblue'),
+    tags$head(tags$link( rel="icon", type="image/png", href="wheat.png", sizes="32x32" ),
+              tags$link( rel="apple-touch-icon", href="apple-touch-icon.png" )
     ),
     
-    mainPanel(
-      rHandsontableOutput('mainDT')
+    useShinyjs(),
+    
+    #add_busy_bar(color = "#FF0000", centered = FALSE, height = "18px"),
+    add_busy_spinner(spin = "fading-circle", margins = c(0, 0), position='full-page', height = "80px", width = "80px"),
+    #add_busy_spinner(spin = "flower", margins = c(0, 0), position='full-page', color = 'red',height = "80px", width = "80px"),
+    
+    preloader = F,
+    
+    f7TabLayout(
+      panels = tagList(
+        f7Panel(title = "Login", side = "left", theme = "dark", effect = "cover",
+                
+                
+                pickerInput(
+                  inputId = 'usr',
+                  label = "user", 
+                  choices = appUsers,
+                  inline = F,
+                  options = list(mobile = T)
+                ),
+                f7Password(inputId = 'pwd', label = "pwd", value = 'Gobs4066' ),
+                
+                f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
+                
+                #actionButton('SaveLogin',  label = 'Save login Info')
+                
+                
+        )
+        #f7Panel(title = "Right Panel", side = "right", theme = "dark", "Blabla", effect = "cover")
+      ),
+      
+      ##################################  NAVIGATION BAR   ##################################      
+      navbar = f7Navbar(
+        # title = shiny::tags$div(style="background-image: url('Logos/HdrBkGrdImage.PNG');", tags$img(src = "Logos/csiro.png", width = "40px", height = "40px"), "Boowora Agricultutral Research Station "),
+        title = tags$div( tags$div(style="vertical-align:middle!important; text-align:left!important; display:inline-block;", "Pearcey Remote Monitoring"), HTML('&nbsp&nbsp&nbsp'), tags$div(style="float: right;", tags$img(src = "Logos/csiro.png", width = "40px", height = "40px", align='right'))),
+        hairline = T,
+        shadow = T,
+        left_panel = T,
+        right_panel = F
+      ),
+      
+      
+      ##################################  UI - Monitoring  ##################################         
+      
+      f7Tabs(
+        animated = T,
+        #swipeable = TRUE,
+        f7Tab(
+          tabName = "Monitor",
+          icon = f7Icon("list_number_rtl", old = TRUE),
+          active = TRUE,
+          f7Float( f7Shadow(
+            intensity = 10,
+            hover = TRUE,
+            tags$div( style=paste0("width: ", defWidth),
+                      f7Card(
+                        
+                        f7Picker(
+                          inputId = 'task',
+                          label = "Tasks", 
+                          choices = tasks,
+                        ),HTML('<BR>'),
+                        f7Button(inputId = 'Update', label = "Update", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
+                      )
+            )
+          ), side = "left" ),
+          
+          f7Float(  f7Shadow(
+            intensity = 100,
+            hover = TRUE,
+            tags$div( style=paste0("width: ", defWidth),
+                      f7Card(
+                        rHandsontableOutput('mainDT')
+                        
+                      ))), side = "left" ),
+        ),
+        
+        ##################################  UI - SOIL DATA MAP   ##################################             
+        
+        f7Tab(
+          tabName = "",
+          icon = f7Icon("layers_fill", old = F),
+          active = FALSE,
+          f7Float(
+            f7Shadow(
+              intensity = 10,
+              hover = TRUE,
+              tags$div( style=paste0("width: ", defWidth),  
+                        f7Card()
+              )
+            )
+            , side = "left")
+        )
+        
+      )
     )
-  )
+  ),
+  
+  
+  ##################################  SERVER  ##################################   
+  server = function(input, output, session) {
+    
+    session$allowReconnect(TRUE)
+    
+    
+    RV <- reactiveValues()
+    RV$currentResponse = NULL
+    RV$isStarting = NULL
+    RV$isStarting="a"
+    
+    output$mainDT <- renderRHandsontable({
+      req(RV$currentResponse)
+      rhandsontable(RV$currentResponse)
+    })
+    
+    
+    observeEvent(input$SaveLogin, {
+      print('Saving Cookie')
+      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(input$usr, 'XXXX',input$pwd))
+    })
+    
+    
+    
+    observe({
+      print('Reading cookie')
+      ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
+      cks <- paste(ck, collapse="")
+      print(paste0('Cookie is - ',cks))
+      if(!is.null(cks) & length(cks)>0){
+        pwd <-str_split(cks, 'XXXX')
+        updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
+        #RV$isStarting="a"
+      }
+    })
+    
+    
+    
+    observe({
+      
+      req(input$pwd, input$usr)
+      print(RV$isStarting)
+      
+      input$Update 
+      
+      
+      isolate({ 
+        theTask <- input$task
+        print(input$usr)
+        print(input$pwd)
+        
+        if(is.null(input$usr) | is.null(p)){
+          return()
+        }
+        if(input$usr=='' | input$pwd ==''){
+          return()
+        }
+        
+        u <- input$usr
+        p <- input$pwd
+        h <- paste0(u,'@', host)
+        
+        
+        try({
+          session <- ssh_connect(host=h, passwd=p)
+          
+          t <- str_replace_all(theTask, " ", "_")
+          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
+          print(cmd)
+          resp <- ssh_exec_internal(session, command=cmd)
+          ssh_disconnect(session)
+          
+          rb <- readBin(resp$stdout, what='character')
+          print(rb)
+          
+          if(t=='Show_Job_Log'){
+            
+            odfx <- read.table(text=rb, header=F, skip=1)
+            odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
+            RV$currentResponse <- odf2
+          }else if(t=='Show_Jobs_Info'){
+            
+            RV$currentResponse <- read.table(text=rb, header=T, skip=0)
+          }else if( t== 'Show_Jobs_Info_-_Verbose'){
+            odf <-  read.table(text=rb, header=F, skip=1)
+            odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
+            RV$currentResponse <- odf2
+          } else if(t=='Show_Queue'){
+            odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
+            odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
+            RV$currentResponse <- odf2
+          }else if(t=='Show_Number_CPUs_In_Use'){
+            odf<- read.table(text=rb, header=F, skip=0)
+            odf2 <- data.frame(CPUs_In_Use=odf$V2)
+            RV$currentResponse <- odf2
+          }else if(t=='Show_All_Users'){
+            odf<- read.table(text=rb, header=T, skip=0)
+            RV$currentResponse <- odf
+          }
+          else if(t=='HPC_Load'){
+            odf<- read.table(text=rb, header=F, skip=0)
+            odf2 <- data.frame(HPC_Load=odf$V2)
+            RV$currentResponse <- odf2
+          }
+        })
+        
+      })
+      
+    })
+    
+    
+  }
 )
 
 
-server <- function(input, output, session) {
-  
-  session$allowReconnect(TRUE)
 
-  
-  RV <- reactiveValues()
-  RV$currentResponse = NULL
-  RV$isStarting = NULL
-  
-  output$mainDT <- renderRHandsontable({
-    req(RV$currentResponse)
-      rhandsontable(RV$currentResponse)
-  })
-  
-  
-  observeEvent(input$SaveLogin, {
-    glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(input$usr, 'XXXX',input$pwd))
-  })
-  
-  
-  
-  observe({
 
-   ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
-   cks <- paste(ck, collapse="")
 
-   if(!is.null(cks) & length(cks)>0){
-     pwd <-str_split(cks, 'XXXX')
-     updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
-     RV$isStarting="a"
-   }
-  })
- 
-  
-  
-  observe({
 
-    
-    print(RV$isStarting)
-   
-   input$Update 
-    theTask <- input$task
-    
-    isolate({ 
-      
 
-       print(input$usr)
-       print(input$pwd)
-      
-      if(is.null(input$usr) | is.null(p)){
-        return()
-      }
-      if(input$usr=='' | input$pwd ==''){
-        return()
-      }
-      
-      u <- input$usr
-      p <- input$pwd
-      h <- paste0(u,'@', host)
-      
-    session <- ssh_connect(host=h, passwd=p)
 
-    t <- str_replace_all(theTask, " ", "_")
-    cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-    resp <- ssh_exec_internal(session, command=cmd)
-    ssh_disconnect(session)
 
-    rb <- readBin(resp$stdout, what='character')
-
-    if(t=='Show_Job_Log'){
-
-      odfx <- read.table(text=rb, header=F, skip=1)
-      odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
-      RV$currentResponse <- odf2
-    }else if(t=='Show_Jobs_Info'){
-      RV$currentResponse <- read.table(text=rb, header=T, skip=0)
-    }else if( t== 'Show_Jobs_Info_-_Verbose'){
-      odf <-  read.table(text=rb, header=F, skip=1)
-      odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
-      RV$currentResponse <- odf2
-    } else if(t=='Show_Queue'){
-      odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
-      odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
-      RV$currentResponse <- odf2
-    }else if(t=='Show_Number_CPUs_In_Use'){
-      odf<- read.table(text=rb, header=F, skip=0)
-      odf2 <- data.frame(CPUs_In_Use=odf$V2)
-      RV$currentResponse <- odf2
-    }else if(t=='Show_All_Users'){
-      odf<- read.table(text=rb, header=T, skip=0)
-      RV$currentResponse <- odf
-    }
-    else if(t=='HPC_Load'){
-      odf<- read.table(text=rb, header=F, skip=0)
-      odf2 <- data.frame(HPC_Load=odf$V2)
-      RV$currentResponse <- odf2
-    }
-
-    })
-    
-  })
-}
-
-# Run the application
-shinyApp(ui = ui, server = server,
-         
-         onStart = function() {
-           cat("Doing application setup\n")
-           
-           onStop(function() {
-             cat("Doing application cleanup\n")
-
-           })
-         })
