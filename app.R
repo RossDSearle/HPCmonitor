@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyMobile)
 library(ssh)
 library(stringr)
 library(rhandsontable)
