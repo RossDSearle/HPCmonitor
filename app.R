@@ -9,6 +9,8 @@ library(glouton)  ## cookie handling
 source(paste0(getwd(), '/appConfig.R'))
 source(paste0(getwd(), '/DontSync_other.R'))
 
+logfilename='x'
+
 defWidth = '380px'
 
 shiny::shinyApp(
@@ -22,7 +24,7 @@ shiny::shinyApp(
     useShinyjs(),
     
     #add_busy_bar(color = "#FF0000", centered = FALSE, height = "18px"),
-    add_busy_spinner(spin = "fading-circle", margins = c(0, 0), position='full-page', height = "80px", width = "80px"),
+    #add_busy_spinner(spin = "fading-circle", margins = c(0, 0), position='full-page', height = "80px", width = "80px"),
     #add_busy_spinner(spin = "flower", margins = c(0, 0), position='full-page', color = 'red',height = "80px", width = "80px"),
     
     preloader = F,
@@ -75,7 +77,10 @@ shiny::shinyApp(
                       f7Card(
                         title = NULL,
                         footer = NULL,
-                        f7Select(
+                        
+                        verbatimTextOutput("pollText"),
+                       
+                        f7Picker(
                           inputId = 'task',
                           label = 'Tasks', 
                           choices = tasks,
@@ -127,6 +132,59 @@ shiny::shinyApp(
     RV$currentResponse = NULL
     RV$isStarting = NULL
     RV$isStarting="a"
+    RV$NumCPUS=1
+    
+    
+    
+    pollData <- reactivePoll(10000, session,
+                             # This function returns the time that the logfile was last
+                             # modified
+                             checkFunc = function() {
+                               
+                               
+                               
+                               # if (file.exists(logfilename))
+                               #   file.info(logfilename)$mtime[1]
+                               # else{
+                               #  # print('here2')
+                                  paste0(Sys.time())
+                               #   
+                               # }
+                             },
+                             # This function returns the content of the logfile
+                             valueFunc = function() {
+                               #print('here')
+                               paste0(Sys.time(), 'Hello')
+                               u <- input$usr
+                               p <- input$pwd
+                               h <- paste0(u,'@', host)
+                               sshsession <- ssh_connect(host=h, passwd=p)
+                               t <- 'Show_Number_CPUs_In_Use'
+                               cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
+                               print(cmd)
+                               resp <- ssh_exec_internal(sshsession, command=cmd)
+                               ssh_disconnect(sshsession)
+                               
+                               rb <- readBin(resp$stdout, what='character')
+                               odf<- read.table(text=rb, header=F, skip=0)
+                               odf2 <- data.frame(CPUs_In_Use=odf$V2)
+                               paste0(odf$V2)
+                               
+                             }
+    )
+    
+    output$pollText <- renderText({
+
+      t <- pollData()
+      print(t)
+     paste0('CPUs in use = ', t )
+       
+      })
+    
+    
+   
+    
+
     
     output$mainDT <- renderRHandsontable({
       req(RV$currentResponse)
@@ -183,13 +241,13 @@ shiny::shinyApp(
         
         
         try({
-          session <- ssh_connect(host=h, passwd=p)
+          sshsession <- ssh_connect(host=h, passwd=p)
           
           t <- str_replace_all(theTask, " ", "_")
           cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
          # print(cmd)
-          resp <- ssh_exec_internal(session, command=cmd)
-          ssh_disconnect(session)
+          resp <- ssh_exec_internal(sshsession, command=cmd)
+          ssh_disconnect(sshsession)
           
           rb <- readBin(resp$stdout, what='character')
           #print(rb)
