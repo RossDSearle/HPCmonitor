@@ -71,7 +71,7 @@ shiny::shinyApp(
         #swipeable = TRUE,
         f7Tab(
           tabName = "Monitor",
-          icon = f7Icon("list_number_rtl", old = TRUE),
+          icon = f7Icon("list_number_rtl"),
           active = TRUE,
           f7Float( f7Shadow(
             intensity = 10,
@@ -97,11 +97,14 @@ shiny::shinyApp(
           f7Float(  f7Shadow(
             intensity = 100,
             hover = TRUE,
-            tags$div( style=paste0("width: ", defWidth),
+            tags$div( style=paste0("min-width: ", defWidth),
                       f7Card(
-                        rHandsontableOutput('mainDT')
+                        #rHandsontableOutput('mainDT')
+                        tableOutput('mainDT')
                         
-                      ))), side = "left" ),
+                      )
+                      )
+            ), side = "left" ),
         ),
         
         ##################################  UI - SOIL DATA MAP   ##################################             
@@ -141,31 +144,17 @@ shiny::shinyApp(
     
     
     pollData <- reactivePoll(20000, session,
-                             # This function returns the time that the logfile was last
-                             # modified
+
                              checkFunc = function() {
-                               
-                               
-                               
-                               # if (file.exists(logfilename))
-                               #   file.info(logfilename)$mtime[1]
-                               # else{
-                               #  # print('here2')
                                   paste0(Sys.time())
-                               #   
-                               # }
                              },
-                             # This function returns the content of the logfile
                              valueFunc = function() {
-                               #print('here')
-                               paste0(Sys.time(), 'Hello')
                                u <- input$usr
                                p <- input$pwd
                                h <- paste0(u,'@', host)
                                sshsession <- ssh_connect(host=h, passwd=p)
                                t <- 'Show_Number_CPUs_In_Use'
                                cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-                               print(cmd)
                                resp <- ssh_exec_internal(sshsession, command=cmd)
                                ssh_disconnect(sshsession)
                                
@@ -178,28 +167,23 @@ shiny::shinyApp(
     )
     
     output$pollText <- renderText({
-
       t <- pollData()
       print(t)
-     paste0('CPUs in use = ', t )
-       
-      })
-    
-    
-   
-    
-
+      paste0(t)
+    })
     
     output$mainDT <- renderRHandsontable({
       req(RV$currentResponse)
       rhandsontable(RV$currentResponse, readOnly = TRUE)
     })
     
+    output$mainDT <- renderTable({ RV$currentResponse},  
+                              bordered = TRUE,  
+                              spacing = 'xs')  
+    
     
     observeEvent(input$SaveLogin, {
-     # print('Saving Cookie')
       cstring <- paste0(input$usr, 'XXXX',input$pwd)
-    #  print(cstring)
       glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
     })
     
@@ -262,8 +246,9 @@ shiny::shinyApp(
             odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
             RV$currentResponse <- odf2
           }else if(t=='Show_Jobs_Info'){
-            
-            RV$currentResponse <- read.table(text=rb, header=T, skip=0)
+            df<-read.table(text=rb, header=T, skip=0)
+            colnames(df) <- c('JobID', 'P', 'C', 'F', 'R', 'Ca', 'T', 'M')
+            RV$currentResponse <- df
           }else if( t== 'Show_Jobs_Info_-_Verbose'){
             odf <-  read.table(text=rb, header=F, skip=1)
             odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
