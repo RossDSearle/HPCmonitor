@@ -164,7 +164,7 @@ shiny::shinyApp(
      # print(RV$isStarting)
       
       input$Update 
-      
+      theTask <- input$task
       
       isolate({ 
         theTask <- input$task
