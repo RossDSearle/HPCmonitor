@@ -1,7 +1,9 @@
 
 host <-  'pearcey-i1.hpc.csiro.au'
 
-appUsers <- c('sea084', 'mal181', 'sto275')
+
+
+
 
 tasks<-c('Show Jobs Info',
          'Show Jobs Info - Verbose',

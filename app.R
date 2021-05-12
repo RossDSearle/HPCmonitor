@@ -7,6 +7,7 @@ library(rhandsontable)
 library(shinybusy)
 library(glouton)  ## cookie handling
 source(paste0(getwd(), '/appConfig.R'))
+source(paste0(getwd(), '/DontSync_other.R'))
 
 defWidth = '380px'
 
@@ -33,9 +34,10 @@ shiny::shinyApp(
                 f7Picker(
                   inputId = 'usr',
                   label = "user", 
-                  choices = tasks,
+                  choices = appUsers,
                 ),
-                f7Password(inputId = 'pwd', label = "pwd", value = 'Gobs4066' ),
+                #f7Password(inputId = 'pwd', label = "pwd", value = defPwd ),
+                f7Text(inputId = 'pwd', label = "pwd", value = defPwd ),
                 
                 f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
                 
@@ -132,20 +134,24 @@ shiny::shinyApp(
     
     
     observeEvent(input$SaveLogin, {
-      print('Saving Cookie')
-      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(input$usr, 'XXXX',input$pwd))
+     # print('Saving Cookie')
+      cstring <- paste0(input$usr, 'XXXX',input$pwd)
+    #  print(cstring)
+      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
     })
     
     
     
     observe({
-      print('Reading cookie')
+     # print('Reading cookie')
       ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
+    #  print(ck)
       cks <- paste(ck, collapse="")
-      print(paste0('Cookie is - ',cks))
+    #  print(paste0('Cookie is - ',cks))
       if(!is.null(cks) & length(cks)>0){
         pwd <-str_split(cks, 'XXXX')
-        updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
+      #  print(pwd)
+     #   updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
         #RV$isStarting="a"
       }
     })
@@ -154,16 +160,16 @@ shiny::shinyApp(
     
     observe({
       
-      req(input$pwd, input$usr)
-      print(RV$isStarting)
+      #req(input$pwd, input$usr)
+     # print(RV$isStarting)
       
       input$Update 
       
       
       isolate({ 
         theTask <- input$task
-        print(input$usr)
-        print(input$pwd)
+       # print(input$usr)
+      #  print(input$pwd)
         
         if(is.null(input$usr) | is.null(p)){
           return()
@@ -182,12 +188,12 @@ shiny::shinyApp(
           
           t <- str_replace_all(theTask, " ", "_")
           cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-          print(cmd)
+         # print(cmd)
           resp <- ssh_exec_internal(session, command=cmd)
           ssh_disconnect(session)
           
           rb <- readBin(resp$stdout, what='character')
-          print(rb)
+          #print(rb)
           
           if(t=='Show_Job_Log'){
             
