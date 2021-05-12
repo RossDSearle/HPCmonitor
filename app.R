@@ -81,16 +81,6 @@ shiny::shinyApp(
                       f7Card(
                         title = NULL,
                         footer = NULL,
-                        f7Text(
-                          inputId = 'numCPUs',
-                          label = 'cpus', 
-                          
-                        ),
-                      ),
-                      
-                      f7Card(
-                        title = NULL,
-                        footer = NULL,
                         
                         verbatimTextOutput("pollText"),
                        
@@ -150,7 +140,7 @@ shiny::shinyApp(
     
     
     
-    pollData <- reactivePoll(10000, session,
+    pollData <- reactivePoll(20000, session,
                              # This function returns the time that the logfile was last
                              # modified
                              checkFunc = function() {
