@@ -6,8 +6,11 @@ library(stringr)
 library(rhandsontable)
 library(shinybusy)
 library(glouton)  ## cookie handling
+library(shinycssloaders)
+
 source(paste0(getwd(), '/appConfig.R'))
 source(paste0(getwd(), '/DontSync_other.R'))
+source("helpers.R")
 
 logfilename='x'
 
@@ -22,6 +25,7 @@ shiny::shinyApp(
     ),
     
     useShinyjs(),
+
     
     #add_busy_bar(color = "#FF0000", centered = FALSE, height = "18px"),
     #add_busy_spinner(spin = "fading-circle", margins = c(0, 0), position='full-page', height = "80px", width = "80px"),
@@ -83,7 +87,7 @@ shiny::shinyApp(
                         footer = NULL,
                         
                         verbatimTextOutput("pollText"),
-                       
+
                         f7Picker(
                           inputId = 'task',
                           label = 'Tasks', 
@@ -100,7 +104,7 @@ shiny::shinyApp(
             tags$div( style=paste0("min-width: ", defWidth),
                       f7Card(
                         #rHandsontableOutput('mainDT')
-                        tableOutput('mainDT')
+                        shinycssloaders::withSpinner( tableOutput('mainDT') )
                         
                       )
                       )
@@ -142,6 +146,16 @@ shiny::shinyApp(
     RV$NumCPUS=1
     
     
+    observeEvent(input$uploadFilesBtn, {
+      # When the button is clicked, wrap the code in a call to `withBusyIndicatorServer()`
+      withBusyIndicatorServer("uploadFilesBtn", {
+        Sys.sleep(1)
+        if (input$select == "error") {
+          stop("choose another option")
+        }
+      })
+    })
+    
     
     pollData <- reactivePoll(20000, session,
 
@@ -172,50 +186,25 @@ shiny::shinyApp(
       paste0(t)
     })
     
-    output$mainDT <- renderRHandsontable({
-      req(RV$currentResponse)
-      rhandsontable(RV$currentResponse, readOnly = TRUE)
-    })
+    # output$mainDT <- renderRHandsontable({
+    #   req(RV$currentResponse)
+    #   rhandsontable(RV$currentResponse, readOnly = TRUE)
+    # })
     
-    output$mainDT <- renderTable({ RV$currentResponse},  
-                              bordered = TRUE,  
-                              spacing = 'xs')  
-    
-    
-    observeEvent(input$SaveLogin, {
-      cstring <- paste0(input$usr, 'XXXX',input$pwd)
-      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
-    })
-    
-    
-    
-    observe({
-     # print('Reading cookie')
-      ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
-    #  print(ck)
-      cks <- paste(ck, collapse="")
-    #  print(paste0('Cookie is - ',cks))
-      if(!is.null(cks) & length(cks)>0){
-        pwd <-str_split(cks, 'XXXX')
-      #  print(pwd)
-     #   updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
-        #RV$isStarting="a"
-      }
-    })
-    
-    
-    
-    observe({
+    output$mainDT <- renderTable({ 
       
-      #req(input$pwd, input$usr)
-     # print(RV$isStarting)
       
       input$Update 
       
       
+      # waiter_show( # show the waiter
+      #   html = spin_fading_circles() # use a spinner
+      # )
+      
       isolate({ 
+        
         theTask <- input$task
-
+        
         if(is.null(input$usr) | is.null(p)){
           return()
         }
@@ -233,7 +222,7 @@ shiny::shinyApp(
           
           t <- str_replace_all(theTask, " ", "_")
           cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-         # print(cmd)
+          # print(cmd)
           resp <- ssh_exec_internal(sshsession, command=cmd)
           ssh_disconnect(sshsession)
           
@@ -273,6 +262,40 @@ shiny::shinyApp(
         })
         
       })
+
+      
+      RV$currentResponse}, striped = TRUE, bordered = TRUE, hover = TRUE, spacing = 'xs')  
+    
+    
+    observeEvent(input$SaveLogin, {
+      cstring <- paste0(input$usr, 'XXXX',input$pwd)
+      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
+    })
+    
+    
+    
+    observe({
+     # print('Reading cookie')
+      ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
+    #  print(ck)
+      cks <- paste(ck, collapse="")
+    #  print(paste0('Cookie is - ',cks))
+      if(!is.null(cks) & length(cks)>0){
+        pwd <-str_split(cks, 'XXXX')
+      #  print(pwd)
+     #   updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
+        #RV$isStarting="a"
+      }
+    })
+    
+    
+    
+    observe({
+      
+      #req(input$pwd, input$usr)
+     # print(RV$isStarting)
+      
+     
       
     })
     
