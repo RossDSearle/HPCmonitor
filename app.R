@@ -129,7 +129,7 @@ shiny::shinyApp(
     
     output$mainDT <- renderRHandsontable({
       req(RV$currentResponse)
-      rhandsontable(RV$currentResponse)
+      rhandsontable(RV$currentResponse, readOnly = TRUE)
     })
     
     
@@ -164,13 +164,11 @@ shiny::shinyApp(
      # print(RV$isStarting)
       
       input$Update 
-      theTask <- input$task
+      
       
       isolate({ 
         theTask <- input$task
-       # print(input$usr)
-      #  print(input$pwd)
-        
+
         if(is.null(input$usr) | is.null(p)){
           return()
         }
