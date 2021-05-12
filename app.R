@@ -73,10 +73,11 @@ shiny::shinyApp(
             hover = TRUE,
             tags$div( style=paste0("width: ", defWidth),
                       f7Card(
-                        
-                        f7Picker(
+                        title = NULL,
+                        footer = NULL,
+                        f7Select(
                           inputId = 'task',
-                          label = "Tasks", 
+                          label = 'Tasks', 
                           choices = tasks,
                         ),HTML('<BR>'),
                         f7Button(inputId = 'Update', label = "Update", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
