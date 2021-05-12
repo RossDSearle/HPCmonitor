@@ -10,7 +10,7 @@ library(shinycssloaders)
 
 source(paste0(getwd(), '/appConfig.R'))
 source(paste0(getwd(), '/DontSync_other.R'))
-source("helpers.R")
+
 
 logfilename='x'
 
