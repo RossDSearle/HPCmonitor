@@ -20,7 +20,7 @@ shiny::shinyApp(
   ui = f7Page(
     title = "Pearcey Remote Monitoring",
     init = f7Init(skin = "auto", theme = "light", filled = T, color = 'lightblue'),
-    tags$head(tags$link( rel="icon", type="image/png", href="wheat.png", sizes="32x32" ),
+    tags$head(tags$link( rel="icon", type="image/png", href="cpu.png", sizes="32x32" ),
               tags$link( rel="apple-touch-icon", href="apple-touch-icon.png" )
     ),
     
