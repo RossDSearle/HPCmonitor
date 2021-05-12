@@ -29,6 +29,9 @@ shiny::shinyApp(
     
     f7TabLayout(
       panels = tagList(
+        
+        
+        
         f7Panel(title = "Login", side = "left", theme = "dark", effect = "cover",
                 
                 f7Picker(
@@ -72,6 +75,17 @@ shiny::shinyApp(
             intensity = 10,
             hover = TRUE,
             tags$div( style=paste0("width: ", defWidth),
+                      
+                      f7Card(
+                        title = NULL,
+                        footer = NULL,
+                        f7Text(
+                          inputId = 'numCPUs',
+                          label = 'cpus', 
+                          
+                        ),
+                      ),
+                      
                       f7Card(
                         title = NULL,
                         footer = NULL,
