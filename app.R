@@ -25,6 +25,7 @@ shiny::shinyApp(
     ),
     
     useShinyjs(),
+    use_glouton(),
 
     
     #add_busy_bar(color = "#FF0000", centered = FALSE, height = "18px"),
@@ -45,8 +46,8 @@ shiny::shinyApp(
                   label = "user", 
                   choices = appUsers,
                 ),
-                #f7Password(inputId = 'pwd', label = "pwd", value = defPwd ),
-                f7Text(inputId = 'pwd', label = "pwd", value = defPwd ),
+                f7Password(inputId = 'pwd', label = "pwd", value = '' ),
+                #f7Text(inputId = 'pwd', label = "pwd", value = '' ),
                 
                 f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
                 
@@ -111,7 +112,7 @@ shiny::shinyApp(
             ), side = "left" ),
         ),
         
-        ##################################  UI - SOIL DATA MAP   ##################################             
+        ##################################  UI - Not Used yet   ##################################             
         
         f7Tab(
           tabName = "",
@@ -163,6 +164,7 @@ shiny::shinyApp(
                                   paste0(Sys.time())
                              },
                              valueFunc = function() {
+                               req(input$pwd)
                                u <- input$usr
                                p <- input$pwd
                                h <- paste0(u,'@', host)
@@ -270,35 +272,25 @@ shiny::shinyApp(
     observeEvent(input$SaveLogin, {
       cstring <- paste0(input$usr, 'XXXX',input$pwd)
       glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
+      print(paste0('Cookie Saved - ', cstring))
+      
     })
     
     
     
     observe({
-     # print('Reading cookie')
+      print('Reading cookie')
       ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
     #  print(ck)
       cks <- paste(ck, collapse="")
-    #  print(paste0('Cookie is - ',cks))
+      print(paste0('Cookie is - ',cks))
       if(!is.null(cks) & length(cks)>0){
         pwd <-str_split(cks, 'XXXX')
       #  print(pwd)
-     #   updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
+        updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
         #RV$isStarting="a"
       }
     })
-    
-    
-    
-    observe({
-      
-      #req(input$pwd, input$usr)
-     # print(RV$isStarting)
-      
-     
-      
-    })
-    
     
   }
 )
