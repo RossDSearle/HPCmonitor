@@ -17,6 +17,50 @@ logfilename='x'
 
 defWidth = '380px'
 
+
+authenticate <- function(host, user, passwd){
+  
+  print(host)
+  print(user)
+  print(passwd)
+  hostu <- paste0(user, '@', host)
+  
+  tryCatch(
+    expr = {
+
+      sshsession <- ssh_connect(host=hostu, passwd=passwd)
+      cmd <- paste0('whoami')
+      resp <- ssh_exec_internal(sshsession, command=cmd)
+      ssh_disconnect(sshsession)
+      rb <- readBin(resp$stdout, what='character')
+      print(rb)
+      
+      if(str_remove(rb, '\n') == user){
+        return(T)
+      }else{
+        return(F)
+      }
+    },
+    error = function(e){
+      message('Caught an error!')
+      print(e)
+      return(F)
+    },
+    warning = function(w){
+      #message('Caught an warning!')
+      print(w)
+      return(F)
+    },
+    finally = {
+      #return(T)
+    }
+  )    
+}
+
+
+
+
+
 shiny::shinyApp(
   ui = f7Page(
     title = "Pearcey Remote Monitoring",
@@ -40,23 +84,11 @@ shiny::shinyApp(
         
         
         
-        f7Panel(title = "Login", side = "left", theme = "dark", effect = "cover",
-                
-                f7Select(
-                  inputId = 'usr',
-                  label = "user", 
-                  choices = appUsers,
-                  selected = ''
-                ),
-                #f7Password(inputId = 'pwd', label = "pwd", value = '' ),
-                f7Text(inputId = 'pwd', label = "pwd", value = '' ),
-                
-                f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
-                
-                #actionButton('SaveLogin',  label = 'Save login Info')
-                
-                
-        )
+        # f7Panel(title = "Login", side = "left", theme = "light", effect = "cover",
+        #        
+        #         
+        #         
+        # )
         #f7Panel(title = "Right Panel", side = "right", theme = "dark", "Blabla", effect = "cover")
       ),
       
@@ -66,20 +98,20 @@ shiny::shinyApp(
         title = tags$div( tags$div(style="vertical-align:middle!important; text-align:left!important; display:inline-block;", "Pearcey Remote Monitoring"), HTML('&nbsp&nbsp&nbsp'), tags$div(style="float: right;", tags$img(src = "Logos/csiro.png", width = "40px", height = "40px", align='right'))),
         hairline = T,
         shadow = T,
-        left_panel = T,
+        left_panel = F,
         right_panel = F
       ),
-      
+
       
       ##################################  UI - Monitoring  ##################################         
       
       f7Tabs(
-        animated = T,
-        #swipeable = TRUE,
+        swipeable = TRUE,
+        animated = FALSE,
         f7Tab(
           tabName = "Monitor",
           icon = f7Icon("list_number_rtl"),
-          active = TRUE,
+          active = F,
           f7Float( f7Shadow(
             intensity = 10,
             hover = TRUE,
@@ -114,18 +146,36 @@ shiny::shinyApp(
             ), side = "left" ),
         ),
         
-        ##################################  UI - Not Used yet   ##################################             
+        ##################################  UI - Authentication   ##################################             
         
         f7Tab(
-          tabName = "",
+          tabName = "Authentication",
           icon = f7Icon("layers_fill", old = F),
-          active = FALSE,
+          active = T,
           f7Float(
             f7Shadow(
               intensity = 10,
               hover = TRUE,
               tags$div( style=paste0("width: ", defWidth),  
-                        f7Card()
+                        f7Card(
+                          
+                          
+                          f7Select(
+                            inputId = 'usr',
+                            label = "user", 
+                            choices = appUsers,
+                            selected = ''
+                          ),
+                          #f7Password(inputId = 'pwd', label = "pwd", value = '' ),
+                          f7Text(inputId = 'pwd', label = "pwd", value = '' ),
+                          HTML('<BR><BR>'),
+                          f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
+                          
+                          ,HTML('<BR><BR>')
+                          ,verbatimTextOutput('authText')
+
+                          
+                        )
               )
             )
             , side = "left")
@@ -147,9 +197,10 @@ shiny::shinyApp(
     RV$isStarting = NULL
     RV$isStarting="a"
     RV$NumCPUS=1
+    RV$Authenticated=F
     
     
-    pollData <- reactivePoll(20000, session,
+    pollData <- reactivePoll(30000, session,
 
                              checkFunc = function() {
                                   paste0(Sys.time())
@@ -177,6 +228,15 @@ shiny::shinyApp(
     output$pollText <- renderText({
       t <- pollData()
       paste0(t)
+    })
+    
+    output$authText <- renderText({
+      
+      if(!RV$Authenticated){
+        paste0('Authentication Failed')
+      }else{
+        paste0('Authentication Succeded')
+      }
     })
     
     # output$mainDT <- renderRHandsontable({
@@ -215,12 +275,10 @@ shiny::shinyApp(
           
           t <- str_replace_all(theTask, " ", "_")
           cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
-          # print(cmd)
           resp <- ssh_exec_internal(sshsession, command=cmd)
           ssh_disconnect(sshsession)
           
           rb <- readBin(resp$stdout, what='character')
-          #print(rb)
           
           if(t=='Show_Job_Log'){
             
@@ -262,32 +320,46 @@ shiny::shinyApp(
     
     observeEvent(input$SaveLogin, {
       
+      
+      if(is.null(input$usr) | is.null(p)){
+        f7Dialog('Test1', text = 'Test1')
+        return()
+      }
+      if(input$usr=='' | input$pwd ==''){
+        f7Dialog(title = 'Authentication Error', text = 'You need to supply a user name and password for logging in to Pearcey', type = "alert")
+        return()
+      }
+      
+      u <- input$usr
+      p <- input$pwd
+      h <- paste0(u,'@', host)
+      
+     if( !authenticate(host=host, user=u, passwd = p)){
+       f7Dialog(title = 'Authentication Error', text = 'Unable to log into Pearcey with the supplied credentials', type = "alert")
+       RV$Authenticated = F
+       return()
+     }
+      
+      
+      RV$Authenticated = T
       eu <- encrypt_string(input$usr, key = "HPCMonitorPas34fcv")
       ep <- encrypt_string(input$pwd, key = "HPCMonitorPas34fcv")
       cstring <- paste0(eu, 'XXXX', ep)
-      #es <- encrypt_string(cstring, key = "HPCMonitorPas34fcv")
-      
-     # cstring <- paste0(input$usr, 'XXXX',es)
       glouton::add_cookie(name="ShinyHPCMonitor", value=cstring)
-      print(paste0('Cookie Saved - ', cstring))
-      #print(es)
-      
     })
     
     
     
+    
     observe({
-      print('Reading cookie')
       ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
-      print(ck)
+
       cks <- paste(ck, collapse="")
-      print(paste0('Cookie is - ',ck))
+
       if(!is.null(cks) & length(cks)>0){
          vls <-str_split(ck[2], 'XXXX')
-         print(vls)
          usr <- vls[[1]][1]
          du <- decrypt_string(usr, "HPCMonitorPas34fcv")
-         print(du)
          pwd <- vls[[1]][2]
          dp <- decrypt_string(pwd, "HPCMonitorPas34fcv")
          updateTextInput(session = session, inputId = 'pwd', value = dp)
