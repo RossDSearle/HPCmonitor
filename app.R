@@ -17,6 +17,10 @@ logfilename='x'
 
 defWidth = '380px'
 
+startAuth <- function(host, usr,pwd){
+  authenticate(host, user, passwd)
+  print('Satrting Authentication')
+}
 
 authenticate <- function(host, user, passwd){
   
@@ -150,7 +154,7 @@ shiny::shinyApp(
         
         f7Tab(
           tabName = "Authentication",
-          icon = f7Icon("layers_fill", old = F),
+          icon = f7Icon("lock_fill"),
           active = T,
           f7Float(
             f7Shadow(
@@ -186,6 +190,8 @@ shiny::shinyApp(
   ),
   
   
+  
+  
   ##################################  SERVER  ##################################   
   server = function(input, output, session) {
     
@@ -199,6 +205,14 @@ shiny::shinyApp(
     RV$NumCPUS=1
     RV$Authenticated=F
     
+   observe({ 
+     if( !authenticate(host=host, user=req(input$usr), passwd = req(input$pwd))){
+       f7Dialog(title = 'Authentication Error', text = 'Unable to log into Pearcey with the supplied credentials', type = "alert")
+       RV$Authenticated = F
+       return()
+     }else
+       RV$Authenticated = T
+     })
     
     pollData <- reactivePoll(30000, session,
 
@@ -235,7 +249,7 @@ shiny::shinyApp(
       if(!RV$Authenticated){
         paste0('Authentication Failed')
       }else{
-        paste0('Authentication Succeded')
+        paste0('Authentication Succeeded')
       }
     })
     
@@ -366,6 +380,8 @@ shiny::shinyApp(
          updateSelectInput(session = session, inputId = 'usr', selected = du)
       }
     })
+    
+    
     
   }
 )
