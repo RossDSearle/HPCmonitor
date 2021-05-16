@@ -7,6 +7,7 @@ library(rhandsontable)
 library(shinybusy)
 library(glouton)  ## cookie handling
 library(shinycssloaders)
+library(safer)
 
 source(paste0(getwd(), '/appConfig.R'))
 source(paste0(getwd(), '/DontSync_other.R'))
@@ -41,13 +42,14 @@ shiny::shinyApp(
         
         f7Panel(title = "Login", side = "left", theme = "dark", effect = "cover",
                 
-                f7Picker(
+                f7Select(
                   inputId = 'usr',
                   label = "user", 
                   choices = appUsers,
+                  selected = ''
                 ),
-                f7Password(inputId = 'pwd', label = "pwd", value = '' ),
-                #f7Text(inputId = 'pwd', label = "pwd", value = '' ),
+                #f7Password(inputId = 'pwd', label = "pwd", value = '' ),
+                f7Text(inputId = 'pwd', label = "pwd", value = '' ),
                 
                 f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
                 
@@ -147,17 +149,6 @@ shiny::shinyApp(
     RV$NumCPUS=1
     
     
-    observeEvent(input$uploadFilesBtn, {
-      # When the button is clicked, wrap the code in a call to `withBusyIndicatorServer()`
-      withBusyIndicatorServer("uploadFilesBtn", {
-        Sys.sleep(1)
-        if (input$select == "error") {
-          stop("choose another option")
-        }
-      })
-    })
-    
-    
     pollData <- reactivePoll(20000, session,
 
                              checkFunc = function() {
@@ -168,6 +159,7 @@ shiny::shinyApp(
                                u <- input$usr
                                p <- input$pwd
                                h <- paste0(u,'@', host)
+
                                sshsession <- ssh_connect(host=h, passwd=p)
                                t <- 'Show_Number_CPUs_In_Use'
                                cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
@@ -184,7 +176,6 @@ shiny::shinyApp(
     
     output$pollText <- renderText({
       t <- pollData()
-      print(t)
       paste0(t)
     })
     
@@ -270,9 +261,16 @@ shiny::shinyApp(
     
     
     observeEvent(input$SaveLogin, {
-      cstring <- paste0(input$usr, 'XXXX',input$pwd)
-      glouton::add_cookie(name="ShinyHPCMonitor", value=paste0(cstring))
+      
+      eu <- encrypt_string(input$usr, key = "HPCMonitorPas34fcv")
+      ep <- encrypt_string(input$pwd, key = "HPCMonitorPas34fcv")
+      cstring <- paste0(eu, 'XXXX', ep)
+      #es <- encrypt_string(cstring, key = "HPCMonitorPas34fcv")
+      
+     # cstring <- paste0(input$usr, 'XXXX',es)
+      glouton::add_cookie(name="ShinyHPCMonitor", value=cstring)
       print(paste0('Cookie Saved - ', cstring))
+      #print(es)
       
     })
     
@@ -281,14 +279,19 @@ shiny::shinyApp(
     observe({
       print('Reading cookie')
       ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
-    #  print(ck)
+      print(ck)
       cks <- paste(ck, collapse="")
-      print(paste0('Cookie is - ',cks))
+      print(paste0('Cookie is - ',ck))
       if(!is.null(cks) & length(cks)>0){
-        pwd <-str_split(cks, 'XXXX')
-      #  print(pwd)
-        updateTextInput(session = session, inputId = 'pwd', value = pwd[[1]][2])
-        #RV$isStarting="a"
+         vls <-str_split(ck[2], 'XXXX')
+         print(vls)
+         usr <- vls[[1]][1]
+         du <- decrypt_string(usr, "HPCMonitorPas34fcv")
+         print(du)
+         pwd <- vls[[1]][2]
+         dp <- decrypt_string(pwd, "HPCMonitorPas34fcv")
+         updateTextInput(session = session, inputId = 'pwd', value = dp)
+         updateSelectInput(session = session, inputId = 'usr', selected = du)
       }
     })
     
