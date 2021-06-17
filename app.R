@@ -288,7 +288,7 @@ shiny::shinyApp(
           sshsession <- ssh_connect(host=h, passwd=p)
           
           t <- str_replace_all(theTask, " ", "_")
-          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
+          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, u)
           resp <- ssh_exec_internal(sshsession, command=cmd)
           ssh_disconnect(sshsession)
           
@@ -371,6 +371,7 @@ shiny::shinyApp(
       cks <- paste(ck, collapse="")
 
       if(!is.null(cks) & length(cks)>0){
+        try({
          vls <-str_split(ck[2], 'XXXX')
          usr <- vls[[1]][1]
          du <- decrypt_string(usr, "HPCMonitorPas34fcv")
@@ -378,6 +379,7 @@ shiny::shinyApp(
          dp <- decrypt_string(pwd, "HPCMonitorPas34fcv")
          updateTextInput(session = session, inputId = 'pwd', value = dp)
          updateSelectInput(session = session, inputId = 'usr', selected = du)
+        })
       }
     })
     
