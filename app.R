@@ -68,7 +68,7 @@ authenticate <- function(host, user, passwd){
 shiny::shinyApp(
   ui = f7Page(
     title = "Pearcey Remote Monitoring",
-    init = f7Init(skin = "auto", theme = "light", filled = T, color = 'lightblue'),
+   # init = f7Init(skin = "auto", theme = "light", filled = T, color = 'lightblue'),
     tags$head(tags$link( rel="icon", type="image/png", href="cpu.png", sizes="32x32" ),
               tags$link( rel="apple-touch-icon", href="apple-touch-icon.png" )
     ),
@@ -132,7 +132,7 @@ shiny::shinyApp(
                           label = 'Tasks', 
                           choices = tasks,
                         ),HTML('<BR>'),
-                        f7Button(inputId = 'Update', label = "Update", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
+                        f7Button(inputId = 'Update', label = "Update",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
                       )
             )
           ), side = "left" ),
@@ -173,7 +173,7 @@ shiny::shinyApp(
                           #f7Password(inputId = 'pwd', label = "pwd", value = '' ),
                           f7Text(inputId = 'pwd', label = "pwd", value = '' ),
                           HTML('<BR><BR>'),
-                          f7Button(inputId = 'SaveLogin', label = "Save login Info", src = NULL, color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
+                          f7Button(inputId = 'SaveLogin', label = "Save login Info",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
                           
                           ,HTML('<BR><BR>')
                           ,verbatimTextOutput('authText')
@@ -220,14 +220,17 @@ shiny::shinyApp(
                                   paste0(Sys.time())
                              },
                              valueFunc = function() {
-                               req(input$pwd)
+                               
+                               req(input$pwd, input$usr)
+                               
+                               if(input$pwd !='' | !is.null(input$pwd )){
                                u <- input$usr
                                p <- input$pwd
                                h <- paste0(u,'@', host)
 
                                sshsession <- ssh_connect(host=h, passwd=p)
                                t <- 'Show_Number_CPUs_In_Use'
-                               cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t)
+                               cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, ' ',u)
                                resp <- ssh_exec_internal(sshsession, command=cmd)
                                ssh_disconnect(sshsession)
                                
@@ -235,6 +238,7 @@ shiny::shinyApp(
                                odf<- read.table(text=rb, header=F, skip=0)
                                odf2 <- data.frame(CPUs_In_Use=odf$V2)
                                paste0(odf$V2)
+                               }
                                
                              }
     )
@@ -288,14 +292,13 @@ shiny::shinyApp(
           sshsession <- ssh_connect(host=h, passwd=p)
           
           t <- str_replace_all(theTask, " ", "_")
-          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, u)
+          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t,' ', u)
           resp <- ssh_exec_internal(sshsession, command=cmd)
           ssh_disconnect(sshsession)
           
           rb <- readBin(resp$stdout, what='character')
           
           if(t=='Show_Job_Log'){
-            
             odfx <- read.table(text=rb, header=F, skip=1)
             odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
             RV$currentResponse <- odf2
