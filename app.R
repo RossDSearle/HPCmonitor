@@ -1,390 +1,261 @@
-library(shiny)
-library(shinyMobile)
-library(shinyjs)
-library(ssh)
-library(stringr)
-library(rhandsontable)
-library(shinybusy)
-library(glouton)  ## cookie handling
-library(shinycssloaders)
-library(safer)
-
-source(paste0(getwd(), '/appConfig.R'))
-source(paste0(getwd(), '/DontSync_other.R'))
-
-
-logfilename='x'
-
-defWidth = '380px'
-
-startAuth <- function(host, usr,pwd){
-  authenticate(host, user, passwd)
-  print('Satrting Authentication')
-}
-
-authenticate <- function(host, user, passwd){
-  
-  print(host)
-  print(user)
-  print(passwd)
-  hostu <- paste0(user, '@', host)
-  
-  tryCatch(
-    expr = {
-
-      sshsession <- ssh_connect(host=hostu, passwd=passwd)
-      cmd <- paste0('whoami')
-      resp <- ssh_exec_internal(sshsession, command=cmd)
-      ssh_disconnect(sshsession)
-      rb <- readBin(resp$stdout, what='character')
-      print(rb)
-      
-      if(str_remove(rb, '\n') == user){
-        return(T)
-      }else{
-        return(F)
-      }
-    },
-    error = function(e){
-      message('Caught an error!')
-      print(e)
-      return(F)
-    },
-    warning = function(w){
-      #message('Caught an warning!')
-      print(w)
-      return(F)
-    },
-    finally = {
-      #return(T)
-    }
-  )    
-}
-
-
-
-
+source('./appConfig.R')
+########    USER INTERFACE  ########################################
+####  .  ####
 
 shiny::shinyApp(
   ui = f7Page(
-    title = "Pearcey Remote Monitoring",
-   # init = f7Init(skin = "auto", theme = "light", filled = T, color = 'lightblue'),
-    tags$head(tags$link( rel="icon", type="image/png", href="cpu.png", sizes="32x32" ),
-              tags$link( rel="apple-touch-icon", href="apple-touch-icon.png" )
+    
+    
+    options = list(theme = "auto",
+                   color = "lightblue",
+                   pullToRefresh = T,
+                   filled = T,
+                   navbar = list(iosCenterTitle = F, hideOnPageScroll = F), 
+                   toolbar = list(hideOnPageScroll = FALSE),
+                   dark = T
     ),
     
-    useShinyjs(),
-    use_glouton(),
-
+    allowPWA = FALSE,  ## This turns off F7s default PWA generation and we use shiny.pwa as per below
     
-    #add_busy_bar(color = "#FF0000", centered = FALSE, height = "18px"),
-    #add_busy_spinner(spin = "fading-circle", margins = c(0, 0), position='full-page', height = "80px", width = "80px"),
-    #add_busy_spinner(spin = "flower", margins = c(0, 0), position='full-page', color = 'red',height = "80px", width = "80px"),
+    pwa("https://shiny.esoil.io/HPCmonitor/",  title = AppName, output = "www", icon='www/monitor.png', 
+        offline_template = 'www/offline.html', offline_message='Sorry we are offline'),
     
-    preloader = F,
+  #  tags$head(tags$link( rel="icon", type="image/png", href="./EPARFIconTriangle32x32.png", sizes="32x32" )),
     
-    f7TabLayout(
-      panels = tagList(
-        
-        
-        
-        # f7Panel(title = "Login", side = "left", theme = "light", effect = "cover",
-        #        
-        #         
-        #         
-        # )
-        #f7Panel(title = "Right Panel", side = "right", theme = "dark", "Blabla", effect = "cover")
-      ),
-      
-      ##################################  NAVIGATION BAR   ##################################      
+    ########   Login Popup   ################     
+    title = shortHostName,
+    f7SingleLayout(
       navbar = f7Navbar(
-        # title = shiny::tags$div(style="background-image: url('Logos/HdrBkGrdImage.PNG');", tags$img(src = "Logos/csiro.png", width = "40px", height = "40px"), "Boowora Agricultutral Research Station "),
-        title = tags$div( tags$div(style="vertical-align:middle!important; text-align:left!important; display:inline-block;", "Pearcey Remote Monitoring"), HTML('&nbsp&nbsp&nbsp'), tags$div(style="float: right;", tags$img(src = "Logos/csiro.png", width = "40px", height = "40px", align='right'))),
-        hairline = T,
-        shadow = T,
-        left_panel = F,
-        right_panel = F
+       # title = paste0(shortHostName, ' HPC Monitoring'),
+        hairline = FALSE,
+        shadow = F,
+        bigger = F,
+        hideStatusbar=T,
+        leftPanel = T,
+        
+        title = tags$div( tags$div(style="vertical-align:bottom; text-align:left!important; display:inline-block, height:120px; width:300px;"),
+                          HTML('&nbsp&nbsp&nbsp'), tags$div(style="float: right; ", tags$img(src = "Logos/csiro3.png", width = "50px", height = "50px", align='right')),
+                          HTML('&nbsp&nbsp&nbsp'),  tags$div(style="vertical-align: middle; font-size: 30px;  ",HTML(paste0('&nbsp&nbsp&nbsp', AppName)) )) 
+        
       ),
-
       
-      ##################################  UI - Monitoring  ##################################         
-      
-      f7Tabs(
-        swipeable = TRUE,
-        animated = FALSE,
-        f7Tab(
-          tabName = "Monitor",
-          icon = f7Icon("list_number_rtl"),
-          active = F,
-          f7Float( f7Shadow(
-            intensity = 10,
-            hover = TRUE,
-            tags$div( style=paste0("width: ", defWidth),
-                      
-                      f7Card(
-                        title = NULL,
-                        footer = NULL,
-                        
-                        verbatimTextOutput("pollText"),
-
-                        f7Picker(
-                          inputId = 'task',
-                          label = 'Tasks', 
-                          choices = tasks,
-                        ),HTML('<BR>'),
-                        f7Button(inputId = 'Update', label = "Update",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
-                      )
-            )
-          ), side = "left" ),
-          
-          f7Float(  f7Shadow(
-            intensity = 100,
-            hover = TRUE,
-            tags$div( style=paste0("min-width: ", defWidth),
-                      f7Card(
-                        #rHandsontableOutput('mainDT')
-                        shinycssloaders::withSpinner( tableOutput('mainDT') )
-                        
-                      )
-                      )
-            ), side = "left" ),
-        ),
-        
-        ##################################  UI - Authentication   ##################################             
-        
-        f7Tab(
-          tabName = "Authentication",
-          icon = f7Icon("lock_fill"),
-          active = T,
-          f7Float(
-            f7Shadow(
-              intensity = 10,
-              hover = TRUE,
-              tags$div( style=paste0("width: ", defWidth),  
-                        f7Card(
-                          
-                          
-                          f7Select(
-                            inputId = 'usr',
-                            label = "user", 
-                            choices = appUsers,
-                            selected = ''
-                          ),
-                          #f7Password(inputId = 'pwd', label = "pwd", value = '' ),
-                          f7Text(inputId = 'pwd', label = "pwd", value = '' ),
-                          HTML('<BR><BR>'),
-                          f7Button(inputId = 'SaveLogin', label = "Save login Info",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small')
-                          
-                          ,HTML('<BR><BR>')
-                          ,verbatimTextOutput('authText')
-
-                          
-                        )
-              )
-            )
-            , side = "left")
+      panels = tagList(
+        f7Panel(title = "Settings", side = "left", theme = "light", effect = "cover",
+                
+                HTML('<BR><BR><BR><b>Down the track I might put some settings in here</b><BR><BR><BR>
+                     Click anywhere in the App to dismiss this panel.')
         )
+      ),
+      
+      HTML('<BR>'),
+      f7Button("UI_Login", paste0("Login to ", shortHostName), color = 'blue',),
+      f7Sheet(
+        id = "sheet1",
+        label = "More",
+        orientation = "bottom",
         
-      )
+        f7Text(inputId='vvvvvv', label='User', value = "", placeholder = 'UserName')
+        
+        ),
+      
+      f7Popup(
+        id = "popupLogin",
+        title = paste0("Login to ", shortHostName),
+        f7Text(inputId='usrVal', label='User', value = "", placeholder = 'UserName'),
+        f7Text(inputId='pwdVal', label='User', value = "", placeholder = 'Password'),
+        f7Button(inputId = "UI_popLoginBut", "Login", color = 'green'),
+        htmlOutput(outputId = "LoginResult")
+      ),
+      
+      uiOutput("ui"),
+      
+      
+      #######   Cookie Management  ########### 
+      
+      tags$head(tags$script(src="js.cookie.js")),
+      tags$head(tags$script(
+        HTML('
+        Shiny.addCustomMessageHandler ("readCookie",function (message) {
+        var cookie = readCookie(message.name);
+        Shiny.onInputChange("cookie", cookie);
+      })
+
+      function readCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(";");
+        for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==" ") c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return      c.substring(nameEQ.length,c.length);
+        }   
+        return ""; }'))),
+      
+      tags$head(tags$script(
+        HTML('
+         Shiny.addCustomMessageHandler ("writeCookie",function (message) {
+         const d = new Date();
+         d.setTime(d.getTime() + (365*24*60*60*1000));
+         let expires = "expires="+ d.toUTCString();
+         document.cookie = "HPCAuth=" + message.name + ";" + expires + ";"           
+      })
+      ')))
     )
   ),
   
   
-  
-  
-  ##################################  SERVER  ##################################   
   server = function(input, output, session) {
     
-    session$allowReconnect(TRUE)
-    
-    
     RV <- reactiveValues()
-    RV$currentResponse = NULL
-    RV$isStarting = NULL
-    RV$isStarting="a"
-    RV$NumCPUS=1
-    RV$Authenticated=F
+    RV$Init <- 1
+    RV$currentCookie <- NULL
+    RV$currentUsr <- NULL
+    RV$currentPwd <- NULL
     
-   observe({ 
-     if( !authenticate(host=host, user=req(input$usr), passwd = req(input$pwd))){
-       f7Dialog(title = 'Authentication Error', text = 'Unable to log into Pearcey with the supplied credentials', type = "alert")
-       RV$Authenticated = F
-       return()
-     }else
-       RV$Authenticated = T
-     })
+    ############   SERVER CODE   ##########################################
+    ##### . ####
     
-    pollData <- reactivePoll(30000, session,
-
-                             checkFunc = function() {
-                                  paste0(Sys.time())
-                             },
-                             valueFunc = function() {
-                               
-                               req(input$pwd, input$usr)
-                               
-                               if(input$pwd !='' | !is.null(input$pwd )){
-                               u <- input$usr
-                               p <- input$pwd
-                               h <- paste0(u,'@', host)
-
-                               sshsession <- ssh_connect(host=h, passwd=p)
-                               t <- 'Show_Number_CPUs_In_Use'
-                               cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, ' ',u)
-                               resp <- ssh_exec_internal(sshsession, command=cmd)
-                               ssh_disconnect(sshsession)
-                               
-                               rb <- readBin(resp$stdout, what='character')
-                               odf<- read.table(text=rb, header=F, skip=0)
-                               odf2 <- data.frame(CPUs_In_Use=odf$V2)
-                               paste0(odf$V2)
-                               }
-                               
-                             }
-    )
+    #################  Login To Server  ###################################
     
-    output$pollText <- renderText({
-      t <- pollData()
-      paste0(t)
-    })
-    
-    output$authText <- renderText({
+    observeEvent(input$UI_popLoginBut, {
       
-      if(!RV$Authenticated){
-        paste0('Authentication Failed')
+      # warning(paste0('usr = ', input$pwdVal))
+      # warning(paste0('pws = ', input$usrVal))
+      # warning(paste0('host = ', hostName))
+      # 
+      resp <- authenticateServer(host=hostName, user=input$usrVal, passwd=input$pwdVal)
+      #resp <- T
+ #     warning(paste0('Auth = ', resp))
+      
+      if(resp){
+        msg <- paste0(input$usrVal, 'HHHH', input$pwdVal)
+        session$sendCustomMessage(type="writeCookie", message=list(name=msg))
+        RV$currentUsr <- input$usrVal
+        RV$currentPwd <- input$pwdVal
+        
+        #############################  Render the UI after Authentication     ########################          
+        
+        output$ui <- renderUI({
+
+          tags$div( style=paste0("width: ", defWidth),
+
+                    f7Card(
+                      title = NULL,
+                      footer = NULL,
+
+                      verbatimTextOutput("pollText"),
+
+                      f7Picker(
+                        inputId = 'task',
+                        label = 'Tasks',
+                        choices = tasks,
+                      ),HTML('<BR>'),
+                      f7Button(inputId = 'Update', label = "Update",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
+                    ),
+                    tableOutput('mainDT')
+          )
+        })
+        
+        updateF7Popup(id = "popupLogin")
       }else{
-        paste0('Authentication Succeeded')
-      }
+        output$LoginResult <- renderText ({ paste0('<BR><H1 style="color: red;">Login to ', shortHostName, ' failed</H1>') })
+      } 
     })
     
-    # output$mainDT <- renderRHandsontable({
-    #   req(RV$currentResponse)
-    #   rhandsontable(RV$currentResponse, readOnly = TRUE)
-    # })
+    ############################   Deal with cookie info  ##########################
+    
+    observeEvent(RV$Init,{
+      session$sendCustomMessage(type="readCookie", message=list(name='HPCAuth'))
+    })
+    
+    
+    observeEvent(input$cookie,{
+      RV$currentCookie <- input$cookie
+    })
+    
+    observeEvent(input$UI_Login, {
+      bits <- str_split(RV$currentCookie, 'HHHH')
+      u <- bits[[1]][1]
+      p <- bits[[1]][2]
+      updateF7Text(inputId = 'usrVal', value = u)
+      updateF7Text(inputId = 'pwdVal', value = p )
+      
+      #f7TogglePopup(id = "popupLogin")
+      updateF7Popup(id = "popupLogin")
+    })
+    
+    
+    
+    
+    #########   Main Functionality ############
     
     output$mainDT <- renderTable({ 
       
-      
+      req(RV$currentUsr, RV$currentPwd)
+     
       input$Update 
       
+          isolate({ 
+            
+            progress <- shiny::Progress$new(style = 'notification')
+            progress$set(message = "Retrieving Info", value = 50)
+            # Close the progress when this reactive exits (even if there's an error)
+            on.exit(progress$close())   
       
-      # waiter_show( # show the waiter
-      #   html = spin_fading_circles() # use a spinner
-      # )
+      theTask <- input$task
       
-      isolate({ 
+      u <- RV$currentUsr
+      p <- RV$currentPwd
+      h <- paste0(u,'@', hostName)
+      
+      try({
         
-        theTask <- input$task
+        sshsession <- ssh_connect(host=h, passwd=p)
+        t <- str_replace_all(theTask, " ", "_")
+        cmd <- paste0(Rpath, ' ',taskControllerPath, ' ', t, ' ', u)
+        print(cmd)
+        #cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, ' ', u)
+        resp <- ssh_exec_internal(sshsession, command=cmd)
+        ssh_disconnect(sshsession)
         
-        if(is.null(input$usr) | is.null(p)){
-          return()
+        rb <- readBin(resp$stdout, what='character')
+        
+        if(t=='Show_Job_Log'){
+          
+          odfx <- read.table(text=rb, header=F, skip=1)
+          odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
+          RV$currentResponse <- odf2
+        }else if(t=='Show_Jobs_Info'){
+          df<-read.table(text=rb, header=T, skip=0)
+          colnames(df) <- c('JobID', 'P', 'C', 'F', 'R', 'Ca', 'T', 'M')
+          RV$currentResponse <- df
+        }else if( t== 'Show_Jobs_Info_-_Verbose'){
+          odf <-  read.table(text=rb, header=F, skip=1)
+          odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
+          RV$currentResponse <- odf2
+        } else if(t=='Show_Queue'){
+          odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
+          odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
+          RV$currentResponse <- odf2
+        }else if(t=='Show_Number_CPUs_In_Use'){
+          odf<- read.table(text=rb, header=F, skip=0)
+          odf2 <- data.frame(CPUs_In_Use=odf$V2)
+          RV$currentResponse <- odf2
+        }else if(t=='Show_All_Users'){
+          odf<- read.table(text=rb, header=T, skip=0)
+          RV$currentResponse <- odf
         }
-        if(input$usr=='' | input$pwd ==''){
-          return()
+        else if(t=='HPC_Load'){
+          odf<- read.table(text=rb, header=F, skip=0)
+          odf2 <- data.frame(HPC_Load=odf$V2)
+          RV$currentResponse <- odf2
         }
-        
-        u <- input$usr
-        p <- input$pwd
-        h <- paste0(u,'@', host)
-        
-        
-        try({
-          sshsession <- ssh_connect(host=h, passwd=p)
-          
-          t <- str_replace_all(theTask, " ", "_")
-          cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t,' ', u)
-          resp <- ssh_exec_internal(sshsession, command=cmd)
-          ssh_disconnect(sshsession)
-          
-          rb <- readBin(resp$stdout, what='character')
-          
-          if(t=='Show_Job_Log'){
-            odfx <- read.table(text=rb, header=F, skip=1)
-            odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
-            RV$currentResponse <- odf2
-          }else if(t=='Show_Jobs_Info'){
-            df<-read.table(text=rb, header=T, skip=0)
-            colnames(df) <- c('JobID', 'P', 'C', 'F', 'R', 'Ca', 'T', 'M')
-            RV$currentResponse <- df
-          }else if( t== 'Show_Jobs_Info_-_Verbose'){
-            odf <-  read.table(text=rb, header=F, skip=1)
-            odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
-            RV$currentResponse <- odf2
-          } else if(t=='Show_Queue'){
-            odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
-            odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
-            RV$currentResponse <- odf2
-          }else if(t=='Show_Number_CPUs_In_Use'){
-            odf<- read.table(text=rb, header=F, skip=0)
-            odf2 <- data.frame(CPUs_In_Use=odf$V2)
-            RV$currentResponse <- odf2
-          }else if(t=='Show_All_Users'){
-            odf<- read.table(text=rb, header=T, skip=0)
-            RV$currentResponse <- odf
-          }
-          else if(t=='HPC_Load'){
-            odf<- read.table(text=rb, header=F, skip=0)
-            odf2 <- data.frame(HPC_Load=odf$V2)
-            RV$currentResponse <- odf2
-          }
-        })
-        
       })
-
+      
+       })
+      
       
       RV$currentResponse}, striped = TRUE, bordered = TRUE, hover = TRUE, spacing = 'xs')  
     
-    
-    observeEvent(input$SaveLogin, {
-      
-      
-      if(is.null(input$usr) | is.null(p)){
-        f7Dialog('Test1', text = 'Test1')
-        return()
-      }
-      if(input$usr=='' | input$pwd ==''){
-        f7Dialog(title = 'Authentication Error', text = 'You need to supply a user name and password for logging in to Pearcey', type = "alert")
-        return()
-      }
-      
-      u <- input$usr
-      p <- input$pwd
-      h <- paste0(u,'@', host)
-      
-     if( !authenticate(host=host, user=u, passwd = p)){
-       f7Dialog(title = 'Authentication Error', text = 'Unable to log into Pearcey with the supplied credentials', type = "alert")
-       RV$Authenticated = F
-       return()
-     }
-      
-      
-      RV$Authenticated = T
-      eu <- encrypt_string(input$usr, key = "HPCMonitorPas34fcv")
-      ep <- encrypt_string(input$pwd, key = "HPCMonitorPas34fcv")
-      cstring <- paste0(eu, 'XXXX', ep)
-      glouton::add_cookie(name="ShinyHPCMonitor", value=cstring)
-    })
-    
-    
-    
-    
-    observe({
-      ck <- glouton::fetch_cookie(name="ShinyHPCMonitor", session = session)
-
-      cks <- paste(ck, collapse="")
-
-      if(!is.null(cks) & length(cks)>0){
-        try({
-         vls <-str_split(ck[2], 'XXXX')
-         usr <- vls[[1]][1]
-         du <- decrypt_string(usr, "HPCMonitorPas34fcv")
-         pwd <- vls[[1]][2]
-         dp <- decrypt_string(pwd, "HPCMonitorPas34fcv")
-         updateTextInput(session = session, inputId = 'pwd', value = dp)
-         updateSelectInput(session = session, inputId = 'usr', selected = du)
-        })
-      }
-    })
     
     
     
@@ -393,9 +264,30 @@ shiny::shinyApp(
 
 
 
+##### . ####
+##### . ####
+########   Code Archive    #######
 
 
-
-
-
-
+# tags$head(tags$script(
+#   HTML('
+#     Shiny.addCustomMessageHandler ("writeCookie",function (message) {
+#     
+#      //alert(message.name)
+#      //var uid = document.getElementById("usr").value;
+#      //var pwd = document.getElementById("pwd").value;
+#      
+#      //alert(pwd);
+#     
+#       //var ck = uid + "XXXX" + pwd;
+#       //Cookies.set(\'HPCAuth\', message.name, { expires: 365 });
+#       
+#      // document.cookie = "HPCAuth=" + message.name +" { expires: 365 }";
+#       
+#        const d = new Date();
+#        d.setTime(d.getTime() + (365*24*60*60*1000));
+#       let expires = "expires="+ d.toUTCString();
+#       document.cookie = "HPCAuth=" + message.name + ";" + expires + ";"           
+#     })
+#     ')
+# ))
