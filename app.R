@@ -8,7 +8,7 @@ shiny::shinyApp(
     
     options = list(theme = "auto",
                    color = "lightblue",
-                   pullToRefresh = T,
+                   pullToRefresh = F,
                    filled = T,
                    navbar = list(iosCenterTitle = F, hideOnPageScroll = F), 
                    toolbar = list(hideOnPageScroll = FALSE),
@@ -20,7 +20,7 @@ shiny::shinyApp(
     pwa("https://shiny.esoil.io/HPCmonitor/",  title = AppName, output = "www", icon='www/monitor.png', 
         offline_template = 'www/offline.html', offline_message='Sorry we are offline'),
     
-  #  tags$head(tags$link( rel="icon", type="image/png", href="./EPARFIconTriangle32x32.png", sizes="32x32" )),
+    tags$head(tags$link( rel="icon", type="image/png", href="./monitorSmall.png", sizes="32x32" )),
     
     ########   Login Popup   ################     
     title = shortHostName,
