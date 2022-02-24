@@ -42,8 +42,42 @@ shiny::shinyApp(
       panels = tagList(
         f7Panel(title = "Settings", side = "left", theme = "light", effect = "cover",
                 
-                HTML('<BR><BR><BR><b>Down the track I might put some settings in here</b><BR><BR><BR>
-                     Click anywhere in the App to dismiss this panel.')
+                HTML('<BR><BR>
+                     Click anywhere in the App to dismiss this panel.'),
+                
+                
+                
+                f7Stepper(
+                  inputId='UIsettingsPollInterval',
+                  label='CPU update interval (seconds)',
+                  min = 20,
+                  max = 60,
+                  value = 20,
+                  step = 5,
+                  fill = T,
+                  rounded = F,
+                  raised = T,
+                  size = 'large',
+                  color = 'green',
+                  wraps = FALSE,
+                  autorepeat = TRUE,
+                  manual = FALSE,
+                  decimalPoint = 0,
+                  buttonsEndInputMode = TRUE
+                ),
+                f7Text(inputId='UIsettingsDebugPath', label='Log Path', value = "", placeholder = NULL),
+                HTML('<BR><BR>'),
+                f7Button(
+                  inputId = 'UIsettingsSave',
+                  label = 'Close',
+                  href = NULL,
+                  color = 'blue',
+                  fill = TRUE,
+                  outline = FALSE,
+                  shadow = FALSE,
+                  rounded = T,
+                  size = 'small'
+                )
         )
       ),
       
@@ -53,6 +87,7 @@ shiny::shinyApp(
         id = "sheet1",
         label = "More",
         orientation = "bottom",
+      
         
         f7Text(inputId='vvvvvv', label='User', value = "", placeholder = 'UserName')
         
@@ -110,21 +145,30 @@ shiny::shinyApp(
     RV$currentCookie <- NULL
     RV$currentUsr <- NULL
     RV$currentPwd <- NULL
+    RV$CPUUpdateInterval <- cpuUpdateInterval
+    RV$debugPath <- NULL
     
     ############   SERVER CODE   ##########################################
     ##### . ####
     
     #################  Login To Server  ###################################
     
+    observe({
+      updateF7Stepper(inputId = 'UIsettingsPollInterval', value=RV$CPUUpdateInterval)
+    })
+    
+    observe({
+      updateF7Stepper(inputId = 'UIsettingsDebugPath', value='Ross')
+    })
+    
+    
     observeEvent(input$UI_popLoginBut, {
       
       # warning(paste0('usr = ', input$pwdVal))
       # warning(paste0('pws = ', input$usrVal))
       # warning(paste0('host = ', hostName))
-      # 
+ 
       resp <- authenticateServer(host=hostName, user=input$usrVal, passwd=input$pwdVal)
-      #resp <- T
- #     warning(paste0('Auth = ', resp))
       
       if(resp){
         msg <- paste0(input$usrVal, 'HHHH', input$pwdVal)
@@ -137,7 +181,7 @@ shiny::shinyApp(
         output$ui <- renderUI({
 
           tags$div( style=paste0("width: ", defWidth),
-
+                    
                     f7Card(
                       title = NULL,
                       footer = NULL,
@@ -151,6 +195,7 @@ shiny::shinyApp(
                       ),HTML('<BR>'),
                       f7Button(inputId = 'Update', label = "Update",  color = 'green', fill = TRUE, outline = F, shadow = T, rounded = T, size = 'small'),
                     ),
+
                     tableOutput('mainDT')
           )
         })
@@ -214,14 +259,22 @@ shiny::shinyApp(
         cmd <- paste0(Rpath, ' ',taskControllerPath, ' ', t, ' ', u)
         print(cmd)
         #cmd <- paste0('/apps/R/3.6.1/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', t, ' ', u)
+        #cmd <- paste0('/apps/R/4.0.5/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', 'Show_Jobs_Info_-_Verbose', ' ', u)
+        #cmd <- paste0('/apps/R/4.0.5/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R ', 'Show_Jobs_Info', ' ', u)
+        #cmd <- paste0('/apps/R/4.0.5/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Show_All_Users sea084')
+        
+        #cmd <- paste0('/apps/R/4.0.5/bin/Rscript /datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R Show_Job_Log sea084')
+        
         resp <- ssh_exec_internal(sshsession, command=cmd)
         ssh_disconnect(sshsession)
         
         rb <- readBin(resp$stdout, what='character')
         
+       # cat(rb, file='/datasets/work/af-digiscapesm/work/Ross/rb.txt')
+        
         if(t=='Show_Job_Log'){
           
-          odfx <- read.table(text=rb, header=F, skip=1)
+          odfx <- read.table(text=rb, header=F, skip=1, fill=T)
           odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
           RV$currentResponse <- odf2
         }else if(t=='Show_Jobs_Info'){
@@ -233,7 +286,7 @@ shiny::shinyApp(
           odf2 <- data.frame(JobID= odf$V2, jobName=odf$V3, startTime=paste0(odf$V4, ' ',odf$V5, ' ',odf$V6, ' ',odf$V7, ' ',odf$V8), startIt=odf$V9, endIt=odf$V10, PENDING=odf$V11, COMPLETED=odf$V12, FAILED=odf$V13, RUNNING=odf$V14, CANCELLED=odf$V15, TIMEOUT=odf$V16, OUT_OF_MEMORY=odf$V17)
           RV$currentResponse <- odf2
         } else if(t=='Show_Queue'){
-          odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1)
+          odf <- read.table(text=gsub("\\[1\\] 0", "", rb), header=F, skip=1, fill=T)
           odf2 <- data.frame(JobID=odf$V1, jobName=odf$V3, ident = paste0(odf$V4), ST=odf$V5, TIME=odf$V6, NODES=odf$V7, NODELIST=odf$V8)
           RV$currentResponse <- odf2
         }else if(t=='Show_Number_CPUs_In_Use'){
@@ -241,11 +294,11 @@ shiny::shinyApp(
           odf2 <- data.frame(CPUs_In_Use=odf$V2)
           RV$currentResponse <- odf2
         }else if(t=='Show_All_Users'){
-          odf<- read.table(text=rb, header=T, skip=0)
+          odf<- read.table(text=rb, header=T, skip=0, fill=T)
           RV$currentResponse <- odf
         }
         else if(t=='HPC_Load'){
-          odf<- read.table(text=rb, header=F, skip=0)
+          odf<- read.table(text=rb, header=F, skip=0, fill=T)
           odf2 <- data.frame(HPC_Load=odf$V2)
           RV$currentResponse <- odf2
         }
@@ -256,7 +309,43 @@ shiny::shinyApp(
       
       RV$currentResponse}, striped = TRUE, bordered = TRUE, hover = TRUE, spacing = 'xs')  
     
+########   CPU Count Polling  ##########
     
+    pollData <- reactivePoll((cpuUpdateInterval * 1000), session,
+                             
+                             checkFunc = function() {
+                               paste0(Sys.time())
+                             },
+                             valueFunc = function() {
+                               
+                               req(input$pwdVal, input$usrVal)
+                               
+                               if(input$pwdVal !='' | !is.null(input$pwdVal )){
+                                 u <- input$usrVal
+                                 p <- input$pwdVal
+                                 h <- paste0(u,'@', hostName)
+                                 
+                                 
+                                 sshsession <- ssh_connect(host=h, passwd=p)
+                                 t <- 'Show_Number_CPUs_In_Use'
+                                 cmd <- paste0(Rpath, ' ',taskControllerPath, ' ', t, ' ', u)
+                                 
+                                 resp <- ssh_exec_internal(sshsession, command=cmd)
+                                 ssh_disconnect(sshsession)
+                                 
+                                 rb <- readBin(resp$stdout, what='character')
+                                 odf<- read.table(text=rb, header=F, skip=0)
+                                 odf2 <- data.frame(CPUs_In_Use=odf$V2)
+                                 paste0(odf$V2)
+                               }
+                               
+                             }
+    )
+    
+    output$pollText <- renderText({
+      t <- pollData()
+      paste0(t)
+    })
     
     
   }

@@ -17,14 +17,16 @@ shortHostName = 'Petrichor'
 hostName = paste0(shortHostName, '-i1.hpc.csiro.au')
 defWidth = 300
 
+cpuUpdateInterval = 30  # polling interval in seconds
+
 Rpath <- '/apps/R/4.0.5/bin/Rscript' 
 taskControllerPath <- '/datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R'
 
 
 tasks<-c('Show Jobs Info',
-         #'Show Jobs Info - Verbose',
+         'Show Jobs Info - Verbose',
          'Show Queue',
-         'Show Number CPUs In Use',
+         #'Show Number CPUs In Use',
          'Show Job Log',
          'Show All Users',
          'HPC Load'
