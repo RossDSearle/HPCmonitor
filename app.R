@@ -97,7 +97,7 @@ shiny::shinyApp(
         id = "popupLogin",
         title = paste0("Login to ", shortHostName),
         f7Text(inputId='usrVal', label='User', value = "", placeholder = 'UserName'),
-        f7Text(inputId='pwdVal', label='User', value = "", placeholder = 'Password'),
+        f7Password(inputId='pwdVal', label='User', value = "", placeholder = 'Password'),
         f7Button(inputId = "UI_popLoginBut", "Login", color = 'green'),
         htmlOutput(outputId = "LoginResult")
       ),
