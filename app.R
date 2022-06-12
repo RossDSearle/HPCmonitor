@@ -273,6 +273,7 @@ shiny::shinyApp(
        # cat(rb, file='/datasets/work/af-digiscapesm/work/Ross/rb.txt')
         
         if(t=='Show_Job_Log'){
+          test
           
           odfx <- read.table(text=rb, header=F, skip=1, fill=T)
           odf2 <- data.frame(JobID=odfx$V2, jobName=odfx$V3, startTime = paste0(odfx$V4, ' ',odfx$V5, ' ',odfx$V6, ' ',odfx$V7, ' ',odfx$V8), startIter=odfx$V9, endIter=odfx$V10)
