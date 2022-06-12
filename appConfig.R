@@ -17,7 +17,7 @@ shortHostName = 'Petrichor'
 hostName = paste0(shortHostName, '-i1.hpc.csiro.au')
 defWidth = 300
 
-cpuUpdateInterval = 20  # polling interval in seconds
+cpuUpdateInterval = 30  # polling interval in seconds
 
 Rpath <- '/apps/R/4.0.5/bin/Rscript' 
 taskControllerPath <- '/datasets/work/af-digiscapesm/work/Ross/SLGA/Shiny/HPC/taskController.R'
